@@ -11,7 +11,7 @@ class RedNoiseSolver(object):
 
 	def clean_bad_data(self) :
 
-		#Clean stars with -1.0 or >10 in errormag. or std mag>1
+		#Clean magnitude measurements with -1.0 or >10 in errormag. or std mag>1
 
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
@@ -81,34 +81,57 @@ class RedNoiseSolver(object):
 			#define bins with equally spaced, self.bins are bins limits
 			histogram = np.histogram(self.data[:,choice].astype(float),size)
 			self.bins = histogram[1]
+
+
 	def compute_quantities(self,choices):
+
 		quantities=collections.namedtuple('Bins',choices)
 		
 		for i in choices :
 			#import pdb; pdb.set_trace()
 			
-			if i=='time' :
-	
+                        # Determine the unique set of epochs (or images) which contain the stars from whic
+                        # the measurements are derived
+			if i=='time' :	
 				quantities.time = np.unique(self.data[:,self.dictionary[i]].astype(float))
+
+                        # NOT SURE WHY YOU DO THIS FOR A POTENTIALLY CONTINUOUS QUANTITY - ADMITTEDLY USUALLY A SINGLE AIRMASS
+                        # VALUE IS ASSOCIATED WITH EACH IMAGE, BUT IN REALITY AIRMASS VARIES ACROSS THE IMAGE AREA. SO FOR
+                        # THE CODE TO BE GENERAL AIRMASS SHOULD BE TREATED AS A CONTINUOUS QUANTITY, AND THEREFORE A VECTOR
+                        # OF UNIQUE VALUES IS NOT A GOOD WAY TO GO
 			if i=='airmass' :
-	
 				quantities.airmass = np.unique(self.data[:,self.dictionary[i]].astype(float))	
-			if i=='exposure' :
-	
+
+                        # Determine the unqiue set of exposure times used
+			if i=='exposure' :	
 				quantities.exposure = np.unique(self.data[:,self.dictionary[i]].astype(float))			
+
 		self.quantities = quantities
 
-	def construct_matrices(self,choices) :
+	# Construct the matrices in the linear least squares problem
+	def construct_matrices(self,choices):
+             
+			#
 			self.compute_quantities(choices)
 
+
+                        # Determine the star list
 			stars = np.unique(self.data[:,self.dictionary['stars']])
 			number_of_stars = len(stars)
+
+                        # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT
+
+                        # I THINK THIS IS UNNECESSARY AND UNWEILDY - THE PROBLEM POTENTIALLY HAS MANY MANY STARS. ONLY THE DIAGONAL OF THIS MATRIX IS NON-ZERO.
+			# NO NEED TO STORE THE WHOLE MATRIX
 			A=np.zeros((number_of_stars,number_of_stars))
 
 			A_diagonal=[sum(1/self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['err_mag']].astype(float)**2) for i in stars]
 			np.fill_diagonal(A,A_diagonal)
 			
+			# A_DIAGONAL AND V1 CAN BE CALCULATED IN THE SAME LOOP TO AVOID REPEATING COSTLY OPERATIONS MORE THAN NECESSARY e.g. np.where(self.data[:,self.dictionary['stars']]==i)
 			v1=[sum(self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['mag']].astype(float)/self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['err_mag']].astype(float)**2) for i in stars]
+
+			# Construct the B sub-matrix
 			B=[]
 			for i in xrange(number_of_stars):
 				line=[]
@@ -124,6 +147,7 @@ class RedNoiseSolver(object):
 				print i
 			B=np.array(B)
 			
+			# Construct the D matrix and v2 vector
 			D=np.zeros((B.shape[1],B.shape[1]))
 			v2=np.zeros(B.shape[1])
 			count=0
