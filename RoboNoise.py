@@ -4,23 +4,23 @@ import collections
 class RedNoiseSolver(object):
 
 
-	def __init__(self, data, dictionnary) :
+	def __init__(self, data, dictionary) :
 
 		self.data = data
-		self.dictionnary = dictionnary
+		self.dictionary = dictionary
 
 	def clean_bad_data(self) :
 
 		#Clean stars with -1.0 or >10 in errormag. or std mag>1
 
-		stars = np.unique(self.data[:,self.dictionnary['stars']])
+		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
 		index3 = []
 		
 		for i in stars :
 			
-			index2 = np.where(self.data[:,self.dictionnary['stars']]==i)[0]			
-			if (-1.0 in self.data[index2,self.dictionnary['err_mag']].astype(float)) | (max(self.data[index2,self.dictionnary['err_mag']].astype(float))>10) | (np.std(self.data[index2,self.dictionnary['mag']].astype(float))>1.0) :
+			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
+			if (-1.0 in self.data[index2,self.dictionary['err_mag']].astype(float)) | (max(self.data[index2,self.dictionary['err_mag']].astype(float))>10) | (np.std(self.data[index2,self.dictionary['mag']].astype(float))>1.0) :
 				pass
 			else :
 				
@@ -32,13 +32,13 @@ class RedNoiseSolver(object):
 
 		#Clean stars that you do not want, for example the mucrolensing target.
 
-		stars = np.unique(self.data[:,self.dictionnary['stars']])
+		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
 		index3 = []
 		
 		for i in stars :
 
-			index2 = np.where(self.data[:,self.dictionnary['stars']]==i)[0]	
+			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]	
 					
 			if i in choices :
 				
@@ -52,15 +52,15 @@ class RedNoiseSolver(object):
 
 	def clean_magnitude_data(self,threshold) :
 
-		stars = np.unique(self.data[:,self.dictionnary['stars']])
+		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
 		index3 = []
 		
 		
 		for i in stars :
 
-			index2 = np.where(self.data[:,self.dictionnary['stars']]==i)[0]			
-			if max(self.data[index2,self.dictionnary['mag']].astype(float))>threshold :
+			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
+			if max(self.data[index2,self.dictionary['mag']].astype(float))>threshold :
 				pass
 			else :
 		
@@ -72,8 +72,8 @@ class RedNoiseSolver(object):
 		#import pdb; pdb.set_trace()
 		if size ==0.0 :
 			
-			size = len(np.unique(self.data[:,self.dictionnary[choice[0]]]))
-			self.bins = np.unique(self.data[:,self.dictionnary[choice[0]]]).astype(float)
+			size = len(np.unique(self.data[:,self.dictionary[choice[0]]]))
+			self.bins = np.unique(self.data[:,self.dictionary[choice[0]]]).astype(float)
 			self.bins = np.append([self.bins],[2*self.bins[-1]])
 
 		else :
@@ -89,37 +89,37 @@ class RedNoiseSolver(object):
 			
 			if i=='time' :
 	
-				quantities.time = np.unique(self.data[:,self.dictionnary[i]].astype(float))
+				quantities.time = np.unique(self.data[:,self.dictionary[i]].astype(float))
 			if i=='airmass' :
 	
-				quantities.airmass = np.unique(self.data[:,self.dictionnary[i]].astype(float))	
+				quantities.airmass = np.unique(self.data[:,self.dictionary[i]].astype(float))	
 			if i=='exposure' :
 	
-				quantities.exposure = np.unique(self.data[:,self.dictionnary[i]].astype(float))			
+				quantities.exposure = np.unique(self.data[:,self.dictionary[i]].astype(float))			
 		self.quantities = quantities
 
 	def construct_matrices(self,choices) :
 			self.compute_quantities(choices)
 
-			stars = np.unique(self.data[:,self.dictionnary['stars']])
+			stars = np.unique(self.data[:,self.dictionary['stars']])
 			number_of_stars = len(stars)
 			A=np.zeros((number_of_stars,number_of_stars))
 
-			A_diagonal=[sum(1/self.data[np.where(self.data[:,self.dictionnary['stars']]==i)[0],self.dictionnary['err_mag']].astype(float)**2) for i in stars]
+			A_diagonal=[sum(1/self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['err_mag']].astype(float)**2) for i in stars]
 			np.fill_diagonal(A,A_diagonal)
 			
-			v1=[sum(self.data[np.where(self.data[:,self.dictionnary['stars']]==i)[0],self.dictionnary['mag']].astype(float)/self.data[np.where(self.data[:,self.dictionnary['stars']]==i)[0],self.dictionnary['err_mag']].astype(float)**2) for i in stars]
+			v1=[sum(self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['mag']].astype(float)/self.data[np.where(self.data[:,self.dictionary['stars']]==i)[0],self.dictionary['err_mag']].astype(float)**2) for i in stars]
 			B=[]
 			for i in xrange(number_of_stars):
 				line=[]
-				index = np.where(self.data[:,self.dictionnary['stars']]==stars[i])[0]
+				index = np.where(self.data[:,self.dictionary['stars']]==stars[i])[0]
 				for j in self.quantities._fields:
 					matches = getattr(self.quantities, j)
 					#import pdb; pdb.set_trace()
 					for k in matches :
 						#import pdb; pdb.set_trace()
-						index2=np.where(self.data[index,self.dictionnary[j]].astype(float)==k)[0]	
-						line+=[np.sum(1/self.data[index[index2],self.dictionnary['err_mag']].astype(float)**2)]
+						index2=np.where(self.data[index,self.dictionary[j]].astype(float)==k)[0]	
+						line+=[np.sum(1/self.data[index[index2],self.dictionary['err_mag']].astype(float)**2)]
 				B.append(line)
 				print i
 			B=np.array(B)
@@ -130,9 +130,9 @@ class RedNoiseSolver(object):
 			for i in self.quantities._fields :
 				matches = getattr(self.quantities,i)
 				for k in matches :
-					index=np.where(self.data[:,self.dictionnary[i]].astype(float)==k)[0]
-					D[count,count]=sum(1/self.data[index,self.dictionnary['err_mag']].astype(float)**2)
-					v2[count] = sum(self.data[index,self.dictionnary['mag']].astype(float)/self.data[index,self.dictionnary['err_mag']].astype(float)**2)
+					index=np.where(self.data[:,self.dictionary[i]].astype(float)==k)[0]
+					D[count,count]=sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2)
+					v2[count] = sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2)
 					count+=1
 	
 			
@@ -145,7 +145,7 @@ class RedNoiseSolver(object):
 
 	def solver(self,choice) :
 
-		#stars = np.unique(self.data[:,self.dictionnary['stars']])
+		#stars = np.unique(self.data[:,self.dictionary['stars']])
 		#number_of_stars = len(stars)
 		#number_of_bins = len(self.bins)
 
@@ -159,25 +159,25 @@ class RedNoiseSolver(object):
 
 		#for i in xrange(number_of_stars):
 	
-		#	index = np.where(self.data[:,self.dictionnary['stars']]==stars[i])[0]
+		#	index = np.where(self.data[:,self.dictionary['stars']]==stars[i])[0]
 	
-		#	A[i,i] = sum(1/self.data[index,self.dictionnary['err_mag']].astype(float)**2)
-		#	v1[i] = sum(self.data[index,self.dictionnary['mag']].astype(float)/self.data[index,self.dictionnary['err_mag']].astype(float)**2)
+		#	A[i,i] = sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2)
+		#	v1[i] = sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2)
 
 		#	for j in xrange(number_of_bins-1):
 				
 				#import pdb; pdb.set_trace()
-		#		index_bins = np.where((self.data[index,self.dictionnary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[index,self.dictionnary[choice[0]]].astype(float)<self.bins[j+1]))[0]	
+		#		index_bins = np.where((self.data[index,self.dictionary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[index,self.dictionary[choice[0]]].astype(float)<self.bins[j+1]))[0]	
 				
-		#		B[i,j] = sum(1/self.data[index[index_bins],self.dictionnary['err_mag']].astype(float)**2)
+		#		B[i,j] = sum(1/self.data[index[index_bins],self.dictionary['err_mag']].astype(float)**2)
 		#	print i/float(number_of_stars)
 					
 		#for j in xrange(number_of_bins-1):
 
-		#	index_bins = np.where((self.data[:,self.dictionnary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[:,self.dictionnary[choice[0]]].astype(float)<self.bins[j+1]))[0]
-		#	D[j,j] = sum(1/self.data[index_bins,self.dictionnary['err_mag']].astype(float)**2)
+		#	index_bins = np.where((self.data[:,self.dictionary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[:,self.dictionary[choice[0]]].astype(float)<self.bins[j+1]))[0]
+		#	D[j,j] = sum(1/self.data[index_bins,self.dictionary['err_mag']].astype(float)**2)
 		
-		#	v2[j] = sum(self.data[index_bins,self.dictionnary['mag']].astype(float)/self.data[index_bins,self.dictionnary['err_mag']].astype(float)**2)
+		#	v2[j] = sum(self.data[index_bins,self.dictionary['mag']].astype(float)/self.data[index_bins,self.dictionary['err_mag']].astype(float)**2)
 
 		A=self.A
 		B=self.B
