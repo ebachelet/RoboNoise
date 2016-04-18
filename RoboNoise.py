@@ -8,7 +8,65 @@ class RedNoiseSolver(object):
 
 		self.data = data
 		self.dictionary = dictionary
+	
 
+	# definition of the new solver for general continuous quantities
+	def find_systematics(self,params) :
+
+		magnitude_measurements = self.data[:,self.dictionary['mag']].astype(float)]
+		magnitude_measurements = magnitude_measurements-self.model_airmass(params)
+		magnitude_measurements = magnitude_measurements-self.model_CCD_positions(params)
+		magnitude_measurements = magnitude_measurements-self.model_exposure_time(params)
+		magnitude_measurements = magnitude_measurements-self.model_background(params)
+		magnitude_measurements = magnitude_measurements-self.model_seeing(params)
+		magnitude_measurements = magnitude_measurements-self.model_phot_scale_factor(params)
+		
+		return magnitude_measurements/self.data[:,self.dictionary['err_mag']].astype(float)]
+
+
+
+	# definitions of continuous quantities functions. Mainly linear functions for a start.
+
+	def model_airmass(self, params) :
+
+		offset_airmass = params*self.quantities.airmass
+		return offset_airmass
+
+	def model_CCD_positions(self, params) :
+		
+		offset_CCD = 0.0 
+		degree = 2
+		for i in range(degree+1) :
+			for j in range(degree+1) :
+			
+			if (i+j>degree) | (i+j==0) :	
+				pass
+			else :
+
+				offset_CCD+ = params[i+j-1]*self.quantities.X**(i)*self.quantities.Y**(j)
+
+		return offset_CCD
+
+
+	def model_exposure_time(self, params) :
+		
+		offset_exptime = params*self.quantities.exptime
+		return offset_exptime
+
+	def model_seeing(self, params) :
+		
+		offset_seeing = params*self.quantities.seeing
+		return offset_seeing
+	def model_background(self, params) :
+		
+		offset_background = params*self.quantities.background
+		return offset_background
+
+	def model_phot_scale_factor(self, params) :
+		
+		offset_phot_scale_factor = params*self.quantities.photscalefactor
+		return offset_phot_scale_factor
+	 
 	def clean_bad_data(self) :
 
 		#Clean magnitude measurements with -1.0 or >10 in errormag. or std mag>1
