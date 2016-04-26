@@ -1,6 +1,6 @@
 import numpy as np
 import collections
-
+from scipy.optimize import leastsq
 class RedNoiseSolver(object):
 
 
@@ -8,63 +8,156 @@ class RedNoiseSolver(object):
 
 		self.data = data
 		self.dictionary = dictionary
+		self.model_quantities = collections.namedtuple('Models',[])
+		self.ref_star =[]	
+
 	
 
-	# definition of the new solver for general continuous quantities
-	def find_systematics(self,params) :
+	def  construct_continuous_matrices(self,choices):
 
-		magnitude_measurements = self.data[:,self.dictionary['mag']].astype(float)]
-		magnitude_measurements = magnitude_measurements-self.model_airmass(params)
-		magnitude_measurements = magnitude_measurements-self.model_CCD_positions(params)
-		magnitude_measurements = magnitude_measurements-self.model_exposure_time(params)
-		magnitude_measurements = magnitude_measurements-self.model_background(params)
-		magnitude_measurements = magnitude_measurements-self.model_seeing(params)
-		magnitude_measurements = magnitude_measurements-self.model_phot_scale_factor(params)
+                # Determine the star list
+		stars = np.unique(self.data[:,self.dictionary['stars']])
+		number_of_stars = len(stars)
+		# Determine the frame list
+		frames = np.unique(self.data[:,self.dictionary['frames']])
+		number_of_frames = len(frames)
+		# create quantity to fit
+		quantities = self.find_model_quantities(choices[0])
+		for i in choices[1:] :
+			quantities = np.c_[quantities,self.find_model_quantities(i)]
+			
+                # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT
+
+		A_diagonal = []
+		v1 = []
+		count = 0	
+		for i in stars :
+			index = np.where(self.data[:,self.dictionary['stars']]==i)[0]
+			A_diagonal.append(sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2))
+			v1.append(sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2))
+			
+				
+		# Construct the B sub-matrix
+		B=[]
+		for i in xrange(number_of_stars):
+			
+			index = np.where(self.data[:,self.dictionary['stars']]==stars[i])[0]
+			line=[]
+			if quantities.ndim==1:
+					
+				line+=[np.sum(quantities[index]*1/self.data[index,self.dictionary['err_mag']].astype(float)**2)]					
+			
+			else:
+
+				line+=np.sum(quantities[index].T*1/self.data[index,self.dictionary['err_mag']].astype(float)**2,axis=1).tolist()
+
+				
+			B.append(line)
+				
+		B=np.array(B)
 		
-		return magnitude_measurements/self.data[:,self.dictionary['err_mag']].astype(float)]
+		# Construct the D matrix and v2 vector
+		
+		
+		D=[]
+		v2=[]
+		if quantities.ndim==1:
+			n_dim = 1
+		else:
+			n_dim =quantities.shape[1]
+		for i in xrange(n_dim)  :
+			if n_dim==1:
+				quantities_i=quantities
+			else :
 
+				quantities_i=quantities[:,i]
+			line=[]	
+			for j in  xrange(n_dim) :
+			
+				if n_dim==1:
+					quantities_j=quantities
+				else :
 
+					quantities_j=quantities[:,j]
+				somme = 0
+				for k in xrange(number_of_frames) :
+						index_i=np.where(self.data[:,self.dictionary['frames']]==frames[k])[0]
+						index_j=np.where(self.data[:,self.dictionary['frames']]==frames[k])[0]
+						somme += np.sum(quantities_i[index_i]*quantities_j[index_j]/self.data[index_i,self.dictionary['err_mag']].astype(float)**2) 
+				line += [somme]
+			D.append(line)
+			v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2)) 
+		
+		D=np.array(D)
+		v2=np.array(v2)
+
+		self.A_diagonal=np.array(A_diagonal)
+		self.B=B
+		self.D=D
+		self.v1=v1
+		self.v2=v2
+
+	def find_model_quantities(self,choice) :
+		
+		if choice == 'seeing' :
+			return self.model_seeing() 
+		
+		if choice == 'airmass' :
+			return self.model_airmass() 
+			
+		if choice == 'CCD' :
+			return self.model_CCD_positions() 
+		if choice == 'exposure' :
+			return self.model_exposure_time() 
+		if choice == 'background' :
+			return self.model_background() 
 
 	# definitions of continuous quantities functions. Mainly linear functions for a start.
 
-	def model_airmass(self, params) :
+	def model_airmass(self) :
+		# f(x) = a*x
+		quantity = self.quantities.airmass
+		#quantity = np.c_[quantity,self.quantities.airmass**2]
+		#quantity = np.c_[quantity,self.quantities.airmass**3]
+		return quantity
 
-		offset_airmass = params*self.quantities.airmass
-		return offset_airmass
 
-	def model_CCD_positions(self, params) :
+	def model_CCD_positions(self) :
+		#import pdb; pdb.set_trace()	
+		#f(x) = a_i*x**i*y**j	
 		
-		offset_CCD = 0.0 
 		degree = 2
+		offset_CCD = self.quantities.CCD_X
 		for i in range(degree+1) :
 			for j in range(degree+1) :
 			
-			if (i+j>degree) | (i+j==0) :	
-				pass
-			else :
+				if (i+j>degree) | (i+j==0) :	
+					pass
+				else :
 
-				offset_CCD+ = params[i+j-1]*self.quantities.X**(i)*self.quantities.Y**(j)
+					offset_CCD = np.c_[offset_CCD, self.quantities.CCD_X**(i)*self.quantities.CCD_Y**(j)]
 
-		return offset_CCD
-
-
-	def model_exposure_time(self, params) :
+		return offset_CCD[:,1:]
 		
-		offset_exptime = params*self.quantities.exptime
+	
+	def model_exposure_time(self) :
+		# f(x) = a*x
+		offset_exptime =self.quantities.exposure
+		#offset_exptime =np.c_[offset_exptime ,self.quantities.exposure**2]
 		return offset_exptime
 
-	def model_seeing(self, params) :
-		
-		offset_seeing = params*self.quantities.seeing
+	def model_seeing(self) :
+		# f(x) = a*x
+		offset_seeing = self.quantities.seeing
 		return offset_seeing
-	def model_background(self, params) :
-		
-		offset_background = params*self.quantities.background
+	def model_background(self) :
+		# f(x) = a*x
+		offset_background = self.quantities.background
 		return offset_background
 
-	def model_phot_scale_factor(self, params) :
-		
-		offset_phot_scale_factor = params*self.quantities.photscalefactor
+	def model_phot_scale_factor(self) :
+		# f(x) = a*x
+		offset_phot_scale_factor =self.quantities.phot_scale_factor
 		return offset_phot_scale_factor
 	 
 	def clean_bad_data(self) :
@@ -140,6 +233,19 @@ class RedNoiseSolver(object):
 			histogram = np.histogram(self.data[:,choice].astype(float),size)
 			self.bins = histogram[1]
 
+	def define_continuous_quantities(self,choices):
+		
+		interest=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor']
+		quantities=collections.namedtuple('Quantities',interest)
+		for i in interest :
+
+			if i in choices :
+				setattr(quantities,i,self.data[:,self.dictionary[i]].astype(float))
+			else :
+
+				setattr(quantities,i,np.array([0]*len(self.data)))
+		
+		self.quantities = quantities
 
 	def compute_quantities(self,choices):
 
@@ -225,71 +331,35 @@ class RedNoiseSolver(object):
 			self.v2=v2	
 			#import pdb; pdb.set_trace()
 
-	def solver(self,choice) :
+	def solve(self) :
 
-		#stars = np.unique(self.data[:,self.dictionary['stars']])
-		#number_of_stars = len(stars)
-		#number_of_bins = len(self.bins)
-
-
-		#A=np.zeros((number_of_stars,number_of_stars))
-		#B=np.zeros((number_of_stars,number_of_bins-1))
-		#D=np.zeros((number_of_bins-1,number_of_bins-1))
-
-		#v1 = np.zeros(number_of_stars)
-		#v2 = np.zeros(number_of_bins-1)
-
-		#for i in xrange(number_of_stars):
-	
-		#	index = np.where(self.data[:,self.dictionary['stars']]==stars[i])[0]
-	
-		#	A[i,i] = sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2)
-		#	v1[i] = sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2)
-
-		#	for j in xrange(number_of_bins-1):
-				
-				#import pdb; pdb.set_trace()
-		#		index_bins = np.where((self.data[index,self.dictionary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[index,self.dictionary[choice[0]]].astype(float)<self.bins[j+1]))[0]	
-				
-		#		B[i,j] = sum(1/self.data[index[index_bins],self.dictionary['err_mag']].astype(float)**2)
-		#	print i/float(number_of_stars)
-					
-		#for j in xrange(number_of_bins-1):
-
-		#	index_bins = np.where((self.data[:,self.dictionary[choice[0]]].astype(float)>=self.bins[j]) & (self.data[:,self.dictionary[choice[0]]].astype(float)<self.bins[j+1]))[0]
-		#	D[j,j] = sum(1/self.data[index_bins,self.dictionary['err_mag']].astype(float)**2)
-		
-		#	v2[j] = sum(self.data[index_bins,self.dictionary['mag']].astype(float)/self.data[index_bins,self.dictionary['err_mag']].astype(float)**2)
-
-		A=self.A
+		A_diagonal=self.A_diagonal
 		B=self.B
+		C=self.B.T		
 		D=self.D
 		v1=self.v1
 		v2=self.v2
+		
+		Invert_A_diagonal=1/A_diagonal	
 
-
-		Invert_A=np.copy(A)
-		for i in xrange(len(A)):
-
-			Invert_A[i,i] = 1/A[i,i]	
-
-
-		term1=np.dot(Invert_A,B)
-		term2=np.dot(B.T,term1)
+		
+		term1=Invert_A_diagonal[:,None]*B	
+		term2=np.dot(C,term1)
 		term3=D-term2
-		term4=np.dot(Invert_A,v1)
-		term5=np.dot(B.T,term4)
+		term4=Invert_A_diagonal*v1
+		term5=np.dot(C,term4)
 		term6 = v2-term5
-
-
+			
 		# inverting matrix, not really efficient 
 		#Invert = np.linalg.inv(term3)
 		#x2=np.dot(Invert,term6)
 
 
-		# x2=np.linalg.solve(term3,term6), solver, not the best
+		#x2=np.linalg.solve(term3,term6)# solver, not the best
 		
 		#leastsq solver
 		x2=np.linalg.lstsq(term3,term6)[0]
+		
 		self.x2 = x2
-		self.x1=np.dot(Invert_A,v1)-np.dot(Invert_A,np.dot(B,x2))
+		self.x1=term4-Invert_A_diagonal*np.dot(B,x2)
+		
