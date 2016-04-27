@@ -104,7 +104,8 @@ class RedNoiseSolver(object):
 		
 		if choice == 'airmass' :
 			return self.model_airmass() 
-			
+		if choice == 'phot_scale_factor' :
+			return self.model_phot_scale_factor() 	
 		if choice == 'CCD' :
 			return self.model_CCD_positions() 
 		if choice == 'exposure' :

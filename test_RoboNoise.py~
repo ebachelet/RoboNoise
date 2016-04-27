@@ -7,17 +7,17 @@ data=np.loadtxt('Auckland_parameters.txt',dtype='string')
 
 #data[:,3] = data[:,3].astype(float)+data[:,6].astype(float)*10-10
 
-#dico = {'stars' : 0, 'time' : 1 , 'mag' : 13, 'err_mag' : 14,'exposure' : 15,'airmass' : 6,'frames':2}
-dico = {'stars' : 0, 'time' : 2 , 'mag' : 3, 'err_mag' : 4, 'exposure' : 5 , 'airmass' :6,'background' :7, 'seeing' :8,'CCD_X' :10,'CCD_Y' :11,'frames':12}
+#dico = {'stars' : 0, 'time' : 1 , 'mag' : 13, 'err_mag' : 14,'exposure' : 15,'airmass' : 6,'frames':2,'seeing':17,'background':16,'CCD_X' :20,'CCD_Y' :21,'phot_scale_factor' : 18 }
+dico = {'stars' : 0, 'time' : 2 , 'mag' : 3, 'err_mag' : 4, 'exposure' : 5 , 'airmass' :6,'background' :7, 'seeing' :8,'seeing' :9,'CCD_X' :10,'CCD_Y' :11,'frames':12}
 Solver = RoboNoise.RedNoiseSolver(data,dico)
 Solver.clean_bad_data()
 #Solver.clean_bad_stars(['lc_00325.189_00321.049_t'])
 Solver.clean_bad_stars(['lc_00201.135_00199.462_t'])
 Solver.clean_magnitude_data(22)
-choice=['airmass','exposure','seeing','background']
+choice=['airmass','exposure','seeing','background','CCD_X','CCD_Y','phot_scale_factor']
 #choice=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time']
 Solver.define_continuous_quantities(choice)
-choice=['airmass','seeing','exposure','background']
+choice=['phot_scale_factor']
 Solver.construct_continuous_matrices(choice)
 Solver.solve()
 print Solver.x1[0],Solver.x2[0]

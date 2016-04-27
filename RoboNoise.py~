@@ -356,7 +356,7 @@ class RedNoiseSolver(object):
 
 
 		#x2=np.linalg.solve(term3,term6)# solver, not the best
-		import pdb; pdb.set_trace()
+		
 		#leastsq solver
 		x2=np.linalg.lstsq(term3,term6)[0]
 		
