@@ -104,7 +104,8 @@ class RedNoiseSolver(object):
 		
 		if choice == 'airmass' :
 			return self.model_airmass() 
-			
+		if choice == 'phot_scale_factor' :
+			return self.model_phot_scale_factor() 	
 		if choice == 'CCD' :
 			return self.model_CCD_positions() 
 		if choice == 'exposure' :
@@ -178,7 +179,7 @@ class RedNoiseSolver(object):
 				index3 = index3+index2.tolist()
 
 		self.data = self.data[index3]
-		
+		print 'Bad data clean : OK'
 	def clean_bad_stars(self,choices) :
 
 		#Clean stars that you do not want, for example the mucrolensing target.
@@ -199,7 +200,7 @@ class RedNoiseSolver(object):
 				index3 = index3+index2.tolist()
 
 		self.data = self.data[index3]
-
+		print 'Bad stars clean : OK '
 
 	def clean_magnitude_data(self,threshold) :
 
@@ -216,9 +217,9 @@ class RedNoiseSolver(object):
 			else :
 		
 				index3 = index3+index2.tolist()
-
+	
 		self.data = self.data[index3]			
-
+		print 'Stars magnitude clean : OK'
 	def define_bins(self,choice,size=0.0):
 		#import pdb; pdb.set_trace()
 		if size ==0.0 :
@@ -342,7 +343,7 @@ class RedNoiseSolver(object):
 		
 		Invert_A_diagonal=1/A_diagonal	
 
-		
+		import pdb; pdb.set_trace()
 		term1=Invert_A_diagonal[:,None]*B	
 		term2=np.dot(C,term1)
 		term3=D-term2
@@ -356,7 +357,7 @@ class RedNoiseSolver(object):
 
 
 		#x2=np.linalg.solve(term3,term6)# solver, not the best
-		
+		import pdb; pdb.set_trace()
 		#leastsq solver
 		x2=np.linalg.lstsq(term3,term6)[0]
 		
