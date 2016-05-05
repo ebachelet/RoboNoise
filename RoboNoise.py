@@ -51,13 +51,13 @@ class RedNoiseSolver(object):
 
 		    sum_k,j indicates a double sum on both terms.
 
-		    D = [sum_k,j Q_1,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_1,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_1,j,k*Q_n,j,k*w_1,k^2 ]
-			[sum_k,j Q_2,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_2,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_2,j,k*Q_n,j,k*w_1,k^2 ]
-                        [sum_k,j Q_3,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_3,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_3,j,k*Q_n,j,k*w_1,k^2 ]
+		    D = [sum_k,j Q_1,j,k*Q_1,j,k*w_j,k^2 ; sum_k,j Q_1,j,k*Q_2,j,k*w_j,k^2 ; .....; sum_k,j Q_1,j,k*Q_n,j,k*w_j,k^2 ]
+			[sum_k,j Q_2,j,k*Q_1,j,k*w_j,k^2 ; sum_k,j Q_2,j,k*Q_2,j,k*w_j,k^2 ; .....; sum_k,j Q_2,j,k*Q_n,j,k*w_j,k^2 ]
+                        [sum_k,j Q_3,j,k*Q_1,j,k*w_j,k^2 ; sum_k,j Q_3,j,k*Q_2,j,k*w_j,k^2 ; .....; sum_k,j Q_3,j,k*Q_n,j,k*w_j,k^2 ]
 			[              .                 ;                .                ; .....;               .                 ]
 			[              .                 ;                .                ; .....;               .                 ]
 			[              .                 ;                .                ; .....;               .                 ]
-			[sum_k,j Q_n,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_n,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_n,j,k*Q_n,j,k*w_1,k^2 ]
+			[sum_k,j Q_n,j,k*Q_1,j,k*w_j,k^2 ; sum_k,j Q_n,j,k*Q_2,j,k*w_j,k^2 ; .....; sum_k,j Q_n,j,k*Q_n,j,k*w_j,k^2 ]
 
 		    So the D matrice is (n,n) shape. Note that it is a symmetric, as in Bramich and Freudling 20121, but not diagonal due to derivative.
 		
