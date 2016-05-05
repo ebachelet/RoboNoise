@@ -1,10 +1,28 @@
+### RoboNoise is a implementation of Bramich and Freudling 2012 red noise estimation for a photometric dataset.
+### It is implemented to fit continuous quantities, i.e mi = M_j+f(xi), in place of bin offset as it is in the original paper.
+### The idea is similar, just some maths changed, especially on the B and D matrices (see Bramich and Freudling 2012)
+
+# Basic python package import
 import numpy as np
 import collections
-from scipy.optimize import leastsq
+
+### Definition of the RedNoise solver class
+
 class RedNoiseSolver(object):
 
 
 	def __init__(self, data, dictionary) :
+		""" This function set how the class should be call. It is madatory that the class got a dataset parameter, data here, and a dictionnary (in a python meaning)
+		    which details wich columns of the dataset corresponds to which quantity. Example, with a dataset :
+	    
+		    data = [stars,time,frames,magnitude,error_magnitude,airmass] 
+		    
+		    should have a dictionnary like
+	
+		    dictionary = {'stars':0,'time':1,'frames':2,'mag':3,'err_mag':4,'airmass':5}
+		    Note that for this example, we would only be able to fit the 'airmass' effect.
+		
+		    Please look to the function for the exact name expected for quantities"""
 
 		self.data = data
 		self.dictionary = dictionary
@@ -14,19 +32,56 @@ class RedNoiseSolver(object):
 	
 
 	def  construct_continuous_matrices(self,choices):
+		""" Construc the matrices as defined in Bramich and Freudling 2012. WARNING : the B and D submatrices are different because the quantities here
+		    are continuous i.e :
+		    Q_i,j, k : -i indicate the quantity define in the find_model_quantities dataset. n different quantities in total.
+		   	       -j indicate the j star. S different stars in total 
+			       -k indicate the k exposure (i.e frame). E different exposure in total
 
-                # Determine the star list
+		    w_j,k : the inverse magnitude error of the m_j,k magnitude point. 
+
+		    B = [sum_k Q_1,1,k*w_1,k^2 ; sum_k Q_2,1,k*w_1,k^2 ; .....; sum_k Q_n,1,k*w_1,k^2]
+		        [sum_k Q_1,2,k*w_2,k^2 ; sum_k Q_2,2,k*w_2,k^2 ; .....; sum_k Q_n,2,k*w_2,k^2]
+		        [          .           ;           .           ;   .  ;          .           ]
+		        [          .           ;           .           ;   .  ;          .           ]
+		        [          .           ;           .           ;   .  ;          .           ]
+		        [sum_k Q_1,S,k*w_S,k^2 ; sum_k Q_2,S,k*w_S,k^2 ; .....; sum_k Q_n,S,k*w_S,k^2]	
+
+		    So the B matrice is (S,n) shape.
+
+		    sum_k,j indicates a double sum on both terms.
+
+		    D = [sum_k,j Q_1,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_1,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_1,j,k*Q_n,j,k*w_1,k^2 ]
+			[sum_k,j Q_2,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_2,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_2,j,k*Q_n,j,k*w_1,k^2 ]
+                        [sum_k,j Q_3,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_3,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_3,j,k*Q_n,j,k*w_1,k^2 ]
+			[              .                 ;                .                ; .....;               .                 ]
+			[              .                 ;                .                ; .....;               .                 ]
+			[              .                 ;                .                ; .....;               .                 ]
+			[sum_k,j Q_n,j,k*Q_1,j,k*w_1,k^2 ; sum_k,j Q_n,j,k*Q_2,j,k*w_1,k^2 ; .....; sum_k,j Q_n,j,k*Q_n,j,k*w_1,k^2 ]
+
+		    So the D matrice is (n,n) shape. Note that it is a symmetric, as in Bramich and Freudling 20121, but not diagonal due to derivative.
+		
+		    
+		"""
+
+                # Determine the star list in the dataset
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		number_of_stars = len(stars)
-		# Determine the frame list
+
+		# Determine the frame list in the dataset
 		frames = np.unique(self.data[:,self.dictionary['frames']])
 		number_of_frames = len(frames)
-		# create quantity to fit
+
+		# create quantity to fit as selected in choice. If you choose 'airmass' and 'seeing', then quantities will be quantities = [Q_'airmass',Q_'seeing']. See documentation of the function for details on quantities.
+
 		quantities = self.find_model_quantities(choices[0])
+
+		# stack the quantities column by columne : quantities =[Q1,Q2,Q3....Qn]
+
 		for i in choices[1:] :
 			quantities = np.c_[quantities,self.find_model_quantities(i)]
 			
-                # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT
+                # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT. TODO!
 
 		A_diagonal = []
 		v1 = []
@@ -96,9 +151,11 @@ class RedNoiseSolver(object):
 		self.D=D
 		self.v1=v1
 		self.v2=v2
+		print 'Matrices construction : OK, we are now close to the solution'
 
 	def find_model_quantities(self,choice) :
-		
+		""" Return for each choice the quantities defin in each subfunction"""
+
 		if choice == 'seeing' :
 			return self.model_seeing() 
 		
@@ -116,7 +173,7 @@ class RedNoiseSolver(object):
 	# definitions of continuous quantities functions. Mainly linear functions for a start.
 
 	def model_airmass(self) :
-		# f(x) = a*x
+		# f(x) = a*x --> Q_'airmass' = [airmass]
 		quantity = self.quantities.airmass
 		#quantity = np.c_[quantity,self.quantities.airmass**2]
 		#quantity = np.c_[quantity,self.quantities.airmass**3]
@@ -125,7 +182,7 @@ class RedNoiseSolver(object):
 
 	def model_CCD_positions(self) :
 		#import pdb; pdb.set_trace()	
-		#f(x) = a_i*x**i*y**j	
+		#f(x) = a_i*x**i*y**j  --> Q_'CCD' =[CCD_Y^1,CCD_Y^2,....CCD_Y^j*CCD_X^i,....,CCD_X^i] 
 		
 		degree = 2
 		offset_CCD = self.quantities.CCD_X
@@ -142,28 +199,28 @@ class RedNoiseSolver(object):
 		
 	
 	def model_exposure_time(self) :
-		# f(x) = a*x
+		# f(x) = a*x --> Q_'exposure_time' = [exposure_time]
 		offset_exptime =self.quantities.exposure
 		#offset_exptime =np.c_[offset_exptime ,self.quantities.exposure**2]
 		return offset_exptime
 
 	def model_seeing(self) :
-		# f(x) = a*x
+		# f(x) = a*x  --> Q_'seeing' = [seeing]
 		offset_seeing = self.quantities.seeing
 		return offset_seeing
 	def model_background(self) :
-		# f(x) = a*x
+		# f(x) = a*x --> Q_'background' = [background]
 		offset_background = self.quantities.background
 		return offset_background
 
 	def model_phot_scale_factor(self) :
-		# f(x) = a*x
+		# f(x) = a*x  --> Q_'phot_scale_factor' = [phot_scale_factor]
 		offset_phot_scale_factor =self.quantities.phot_scale_factor
 		return offset_phot_scale_factor
 	 
 	def clean_bad_data(self) :
 
-		#Clean magnitude measurements with -1.0 or >10 in errormag. or std mag>1
+		# Delete all the measurement for the star j if  : error_mag is -1.0 or >10; or if the variation of the star is to big (i.e std(mag)>1)
 
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
@@ -180,9 +237,10 @@ class RedNoiseSolver(object):
 
 		self.data = self.data[index3]
 		print 'Bad data clean : OK'
+
 	def clean_bad_stars(self,choices) :
 
-		#Clean stars that you do not want, for example the mucrolensing target.
+		#Clean stars that you do not want, for example the microlensing target. 
 
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
@@ -204,6 +262,8 @@ class RedNoiseSolver(object):
 
 	def clean_magnitude_data(self,threshold) :
 
+		#Clean stars fainter than the threshold. 
+
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = np.arange(0,len(self.data)+1)
 		index3 = []
@@ -220,6 +280,65 @@ class RedNoiseSolver(object):
 	
 		self.data = self.data[index3]			
 		print 'Stars magnitude clean : OK'
+
+
+
+	def define_continuous_quantities(self,choices):
+		
+		# Define the quantities for the solver. If this is in choices, the code read the column thanks to the dictionary. If not, just set it to zero.
+
+	
+		interest=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor']
+		quantities=collections.namedtuple('Quantities',interest)
+		for i in interest :
+
+			if i in choices :
+				setattr(quantities,i,self.data[:,self.dictionary[i]].astype(float))
+			else :
+
+				setattr(quantities,i,np.array([0]*len(self.data)))
+		
+		self.quantities = quantities
+
+
+	def solve(self) :
+		
+		# Solve the least-square problem, as defined in BRamich and Freudling 2012.
+
+		A_diagonal=self.A_diagonal
+		B=self.B
+		C=self.B.T		
+		D=self.D
+		v1=self.v1
+		v2=self.v2
+		
+		Invert_A_diagonal=1/A_diagonal	
+
+		
+		term1=Invert_A_diagonal[:,None]*B	
+		term2=np.dot(C,term1)
+		term3=D-term2
+		term4=Invert_A_diagonal*v1
+		term5=np.dot(C,term4)
+		term6 = v2-term5
+			
+		# inverting matrix, not really efficient 
+		#Invert = np.linalg.inv(term3)
+		#x2=np.dot(Invert,term6)
+
+
+		#x2=np.linalg.solve(term3,term6)# solver, not the best
+
+		#leastsq solver
+		x2=np.linalg.lstsq(term3,term6)[0]
+		
+		self.x2 = x2
+		self.x1=term4-Invert_A_diagonal*np.dot(B,x2)
+
+###########################################################################################################################################################################
+### ALL THE FOLLOWING CAN, AND SHOULD, BE IGNORED. THIS COMES FROM ORIGINAL BRAMICH AND FREUDLING 2012 IMPLEMENTATION. WE KEEP IT FOR HISTORIC AND DEVELOPMENT PURPOSE ####
+###########################################################################################################################################################################
+
 	def define_bins(self,choice,size=0.0):
 		#import pdb; pdb.set_trace()
 		if size ==0.0 :
@@ -234,20 +353,7 @@ class RedNoiseSolver(object):
 			histogram = np.histogram(self.data[:,choice].astype(float),size)
 			self.bins = histogram[1]
 
-	def define_continuous_quantities(self,choices):
-		
-		interest=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor']
-		quantities=collections.namedtuple('Quantities',interest)
-		for i in interest :
-
-			if i in choices :
-				setattr(quantities,i,self.data[:,self.dictionary[i]].astype(float))
-			else :
-
-				setattr(quantities,i,np.array([0]*len(self.data)))
-		
-		self.quantities = quantities
-
+	
 	def compute_quantities(self,choices):
 
 		quantities=collections.namedtuple('Bins',choices)
@@ -332,35 +438,5 @@ class RedNoiseSolver(object):
 			self.v2=v2	
 			#import pdb; pdb.set_trace()
 
-	def solve(self) :
-
-		A_diagonal=self.A_diagonal
-		B=self.B
-		C=self.B.T		
-		D=self.D
-		v1=self.v1
-		v2=self.v2
-		
-		Invert_A_diagonal=1/A_diagonal	
-
-		import pdb; pdb.set_trace()
-		term1=Invert_A_diagonal[:,None]*B	
-		term2=np.dot(C,term1)
-		term3=D-term2
-		term4=Invert_A_diagonal*v1
-		term5=np.dot(C,term4)
-		term6 = v2-term5
-			
-		# inverting matrix, not really efficient 
-		#Invert = np.linalg.inv(term3)
-		#x2=np.dot(Invert,term6)
-
-
-		#x2=np.linalg.solve(term3,term6)# solver, not the best
-		import pdb; pdb.set_trace()
-		#leastsq solver
-		x2=np.linalg.lstsq(term3,term6)[0]
-		
-		self.x2 = x2
-		self.x1=term4-Invert_A_diagonal*np.dot(B,x2)
+	
 		
