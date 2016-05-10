@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ### This is an example on how works RoboNoise and how you should feed it.
-### Two datasets, one linked to OB160446, see Bachelet 2015.
+### Two datasets, one linked to OB130446, see Bachelet 2015.
 ### The other one is a LCOGT dataset for OB141185 planetary event.
 
 
@@ -22,8 +22,8 @@ data=np.loadtxt('OB141185_lightcurves_coja.txt',dtype='string')
 print "data success load in",time.time()-start
 
 # Choose the according dictionary you have to pass to the solver. Same order as previously. Dico is the french abbreviation of dictionnary for people interested.
-#dico = {'stars' : 0, 'frames':1, 'time' : 2 , 'mag' : 14, 'err_mag' : 15,'exposure' : 16,'airmass' : -1,'seeing':18,'background':17,'CCD_X':21,'CCD_Y':22,'phot_scale_factor' :19 }
-dico = {'stars' : 0, 'time' : 2 , 'mag' : 3, 'err_mag' : 4, 'exposure' : 5 , 'airmass' :6,'background' :7, 'seeing' :8,'phot_scale_factor' :9,'CCD_X' :10,'CCD_Y' :11,'frames':12}
+dico = {'stars' : 0, 'frames':1, 'time' : 2 , 'mag' : 14, 'err_mag' : 15,'exposure' : 16,'airmass' : -1,'seeing':18,'background':17,'CCD_X':21,'CCD_Y':22,'phot_scale_factor' :19 }
+#dico = {'stars' : 0, 'time' : 2 , 'mag' : 3, 'err_mag' : 4, 'exposure' : 5 , 'airmass' :6,'background' :7, 'seeing' :8,'phot_scale_factor' :9,'CCD_X' :10,'CCD_Y' :11,'frames':12}
 
 # Load the dataset and dictionary for the solver
 Solver = RoboNoise.RedNoiseSolver(data,dico)
@@ -48,9 +48,8 @@ Solver.define_continuous_quantities(choice)
 # What do you want to fit. For example, if you want 'airmass' and 'seeing', just put ['airmass','seeing']. Here we want to fit the airmass :
 choice=['airmass']
 
-
 ############LEAVE THIS BIT IN FOR DAN TO WRITE OUT THE CLEANED DATA THAT ARE BEING USED FOR TESTING PURPOSES##############
-#with open('Dan.Data.OB13446.txt', mode='w') as rfile:
+#with open('Dan.Data.OB141185.txt', mode='w') as rfile:
 #    for item in Solver.data:
 #        line = ''
 #        for col in item:
@@ -65,7 +64,8 @@ Solver.construct_continuous_matrices(choice)
 Solver.solve()
 
 
-# Now you have solved the equation. As defined in Bramich and Freudling 2012, Solver.x1 is an array containing the "true" magnitudes of the stars (who passed all the cleaning steps). Solver.x2 give you the model coefficients estimation, ordering in the same order as quantities. See RoboNoise module for more details.
+# Now you have solved the equation. As defined in Bramich and Freudling 2012, Solver.x1 is an array containing the "true" magnitudes of the stars (who passed all the cleaning steps).
+# Solver.x2 give you the model coefficients estimation, ordering in the same order as quantities. See RoboNoise module for more details.
 
 
 
