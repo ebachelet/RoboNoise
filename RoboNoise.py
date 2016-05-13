@@ -83,20 +83,19 @@ class RedNoiseSolver(object):
 			
                 # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT. TODO!
 
+		# Construct the A, B sub matrices, see Bramich and Freudling 2012, and the v1 vector.
+
 		A_diagonal = []
 		v1 = []
-		count = 0	
+		B=[]
+		count = 0
+
+			
 		for i in stars :
+
 			index = np.where(self.data[:,self.dictionary['stars']]==i)[0]
 			A_diagonal.append(sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2))
 			v1.append(sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2))
-			
-				
-		# Construct the B sub-matrix
-		B=[]
-		for i in xrange(number_of_stars):
-			
-			index = np.where(self.data[:,self.dictionary['stars']]==stars[i])[0]
 			line=[]
 			if quantities.ndim==1:
 					
@@ -110,41 +109,55 @@ class RedNoiseSolver(object):
 			B.append(line)
 				
 		B=np.array(B)
+				
+	
+		
 		
 		# Construct the D matrix and v2 vector
 		
 		
-		D=[]
+		
 		v2=[]
 		if quantities.ndim==1:
 			n_dim = 1
+			D = np.zeros((1,1))
+			quantities_i=quantities
+			quantities_j=quantities
+			D[0,0] = np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
+			v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2))
+			v2=np.array(v2)
 		else:
 			n_dim =quantities.shape[1]
-		for i in xrange(n_dim)  :
-			if n_dim==1:
-				quantities_i=quantities
-			else :
+			D = np.zeros((n_dim,n_dim))
 
+			for i in xrange(n_dim)  :
+	
 				quantities_i=quantities[:,i]
-			line=[]	
-			for j in  xrange(n_dim) :
+				line=[]	
+				print i
+				for j in np.arange(i,n_dim) :
 			
-				if n_dim==1:
-					quantities_j=quantities
-				else :
-
 					quantities_j=quantities[:,j]
-				somme = 0
-				for k in xrange(number_of_frames) :
-						index_i=np.where(self.data[:,self.dictionary['frames']]==frames[k])[0]
-						index_j=np.where(self.data[:,self.dictionary['frames']]==frames[k])[0]
-						somme += np.sum(quantities_i[index_i]*quantities_j[index_j]/self.data[index_i,self.dictionary['err_mag']].astype(float)**2) 
-				line += [somme]
-			D.append(line)
-			v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2)) 
+					
+					
+					if choices[0]=='frames' :
+						
+						if i==j :
+
+							somme =  np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
+						else :
+					
+							somme  = 0.0
+					else :
+						somme =  np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
+					D[i,j] = somme
+					D[j,i] = somme
+					
+			
+				v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2)) 
 		
-		D=np.array(D)
-		v2=np.array(v2)
+		
+			v2=np.array(v2)
 
 		self.A_diagonal=np.array(A_diagonal)
 		self.B=B
@@ -170,7 +183,30 @@ class RedNoiseSolver(object):
 		if choice == 'background' :
 			return self.model_background() 
 
+		if choice == 'frames' :
+			return self.model_frames()
+
 	# definitions of continuous quantities functions. Mainly linear functions for a start.
+	def model_frames(self) :
+		
+		frames = np.unique(self.data[:,self.dictionary['frames']])
+		stars = np.unique(self.data[:,self.dictionary['stars']])
+			
+		count = 0
+		for i in frames :
+			Quantity = np.zeros((len(self.data)))
+			index = np.where(self.data[:,self.dictionary['frames']]==i)[0]
+			Quantity[index] = 1.0
+			if count == 0 :
+			
+				quantity = Quantity
+				count += 1
+			else :
+			
+				quantity = np.c_[quantity,Quantity]		
+			
+					
+		return quantity
 
 	def model_airmass(self) :
 		# f(x) = a*x --> Q_'airmass' = [airmass]
@@ -184,7 +220,7 @@ class RedNoiseSolver(object):
 		#import pdb; pdb.set_trace()	
 		#f(x) = a_i*x**i*y**j  --> Q_'CCD' =[CCD_Y^1,CCD_Y^2,....CCD_Y^j*CCD_X^i,....,CCD_X^i] 
 		
-		degree = 2
+		degree = self.CCD_fit_degree
 		offset_CCD = self.quantities.CCD_X
 		for i in range(degree+1) :
 			for j in range(degree+1) :
@@ -223,19 +259,23 @@ class RedNoiseSolver(object):
 		# Delete all the measurement for the star j if  : error_mag is -1.0 or >10; or if the variation of the star is to big (i.e std(mag)>1)
 
 		stars = np.unique(self.data[:,self.dictionary['stars']])
-		index = np.arange(0,len(self.data)+1)
-		index3 = []
+		index = []
+		
+                mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
 		
 		for i in stars :
 			
 			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
-			if (-1.0 in self.data[index2,self.dictionary['err_mag']].astype(float)) | (max(self.data[index2,self.dictionary['err_mag']].astype(float))>10) | (np.std(self.data[index2,self.dictionary['mag']].astype(float))>1.0) :
+			if (True in mask[index2]) | (np.std(self.data[index2,self.dictionary['mag']].astype(float))>1.0) :
+
 				pass
 			else :
-				
-				index3 = index3+index2.tolist()
 
-		self.data = self.data[index3]
+
+				index += index2.tolist() 
+				
+
+		self.data = self.data[index]
 		print 'Bad data clean : OK'
 
 	def clean_bad_stars(self,choices) :
@@ -243,23 +283,19 @@ class RedNoiseSolver(object):
 		#Clean stars that you do not want, for example the microlensing target. 
 
 		stars = np.unique(self.data[:,self.dictionary['stars']])
-		index = np.arange(0,len(self.data)+1)
-		index3 = []
+		index = np.arange(0,len(self.data))
+		index2 = []		
 		
-		for i in stars :
+		for i in choices :
 
-			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]	
-					
-			if i in choices :
-				
-				pass
-			else :
+			index2 += np.where(self.data[:,self.dictionary['stars']]==i)[0].tolist()	
 		
-				index3 = index3+index2.tolist()
-
-		self.data = self.data[index3]
+		index = np.delete(index,index2)			
+			
+		
+		self.data = self.data[index]
 		print 'Bad stars clean : OK '
-
+			
 	def clean_magnitude_data(self,threshold) :
 
 		#Clean stars fainter than the threshold. 
@@ -288,15 +324,19 @@ class RedNoiseSolver(object):
 		# Define the quantities for the solver. If this is in choices, the code read the column thanks to the dictionary. If not, just set it to zero.
 
 	
-		interest=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor']
-		quantities=collections.namedtuple('Quantities',interest)
-		for i in interest :
-
-			if i in choices :
+		#interest=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor']
+		quantities=collections.namedtuple('Quantities',choices)
+		
+		for i in choices :
+				
+			if i !='frames' :
+			
 				setattr(quantities,i,self.data[:,self.dictionary[i]].astype(float))
-			else :
+			
+			
 
-				setattr(quantities,i,np.array([0]*len(self.data)))
+				
+		
 		
 		self.quantities = quantities
 
@@ -310,6 +350,7 @@ class RedNoiseSolver(object):
 		C=self.B.T		
 		D=self.D
 		v1=self.v1
+		
 		v2=self.v2
 		
 		Invert_A_diagonal=1/A_diagonal	
@@ -331,6 +372,8 @@ class RedNoiseSolver(object):
 
 		#leastsq solver
 		x2=np.linalg.lstsq(term3,term6)[0]
+
+
 		
 		self.x2 = x2
 		self.x1=term4-Invert_A_diagonal*np.dot(B,x2)
