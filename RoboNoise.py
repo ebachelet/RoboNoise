@@ -5,7 +5,7 @@
 # Basic python package import
 import numpy as np
 import collections
-
+import time
 ### Definition of the RedNoise solver class
 
 class RedNoiseSolver(object):
@@ -85,6 +85,7 @@ class RedNoiseSolver(object):
 
 		# Construct the A, B sub matrices, see Bramich and Freudling 2012, and the v1 vector.
 
+		start = time.time()	
 		A_diagonal = []
 		v1 = []
 		B=[]
@@ -110,13 +111,13 @@ class RedNoiseSolver(object):
 				
 		B=np.array(B)
 				
-	
+		print 'Matrices A,B and v1 construct in',time.time()-start,'s'
 		
 		
 		# Construct the D matrix and v2 vector
 		
 		
-		
+		start = time.time()
 		v2=[]
 		if quantities.ndim==1:
 			n_dim = 1
@@ -159,6 +160,7 @@ class RedNoiseSolver(object):
 		
 			v2=np.array(v2)
 
+		print 'Matrices D and v2 construct in',time.time()-start,'s'
 		self.A_diagonal=np.array(A_diagonal)
 		self.B=B
 		self.D=D
@@ -257,24 +259,25 @@ class RedNoiseSolver(object):
 	def clean_bad_data(self) :
 
 		# Delete all the measurement for the star j if  : error_mag is -1.0 or >10; or if the variation of the star is to big (i.e std(mag)>1)
-
+		
 		stars = np.unique(self.data[:,self.dictionary['stars']])
 		index = []
 		
                 mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
 		
+		count = 0		
 		for i in stars :
 			
-			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
-			if (True in mask[index2]) | (np.std(self.data[index2,self.dictionary['mag']].astype(float))>1.0) :
-
+			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]
+			
+			if (True in mask[index2]):
 				pass
 			else :
 
-
-				index += index2.tolist() 
-				
-
+				if np.std(self.data[index2,self.dictionary['mag']].astype(float))<1.0 :
+					index += index2.tolist() 
+			count += 1	
+		
 		self.data = self.data[index]
 		print 'Bad data clean : OK'
 
