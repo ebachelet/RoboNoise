@@ -85,6 +85,7 @@ class RedNoiseSolver(object):
 
 		# Construct the A, B sub matrices, see Bramich and Freudling 2012, and the v1 vector.
 
+		start = time.time()	
 		A_diagonal = []
 		v1 = []
 		B=[]
@@ -110,13 +111,13 @@ class RedNoiseSolver(object):
 				
 		B=np.array(B)
 				
-	
+		print 'Matrices A,B and v1 construct in',time.time()-start,'s'
 		
 		
 		# Construct the D matrix and v2 vector
 		
 		
-		
+		start = time.time()
 		v2=[]
 		if quantities.ndim==1:
 			n_dim = 1
@@ -159,6 +160,7 @@ class RedNoiseSolver(object):
 		
 			v2=np.array(v2)
 
+		print 'Matrices D and v2 construct in',time.time()-start,'s'
 		self.A_diagonal=np.array(A_diagonal)
 		self.B=B
 		self.D=D
@@ -229,7 +231,7 @@ class RedNoiseSolver(object):
 					pass
 				else :
 
-					offset_CCD = np.c_[offset_CCD, self.quantities.CCD_X**(i)*self.quantities.CCD_Y**(j)]
+					offset_CCD = np.c_[offset_CCD, ((self.quantities.CCD_X))**(i)*((self.quantities.CCD_Y))**(j)]
 
 		return offset_CCD[:,1:]
 		
@@ -345,7 +347,7 @@ class RedNoiseSolver(object):
 	def solve(self) :
 		
 		# Solve the least-square problem, as defined in BRamich and Freudling 2012.
-
+		
 		A_diagonal=self.A_diagonal
 		B=self.B
 		C=self.B.T		
@@ -353,16 +355,33 @@ class RedNoiseSolver(object):
 		v1=self.v1
 		
 		v2=self.v2
-		
-		Invert_A_diagonal=1/A_diagonal	
 
+		####Set the first star magnitude to the median, to scale the problem. Comment this to avoid that.
+		#### !Warning on the the term self.x1 below, which is computed with the good quantities (without this scaling)
 		
-		term1=Invert_A_diagonal[:,None]*B	
-		term2=np.dot(C,term1)
+		first = np.unique(self.data[:,self.dictionary['stars']])[0]
+		first_star = np.where(self.data[:,self.dictionary['stars']] == first)[0]
+		
+		V1 = v1[1:]
+		#c
+V1[0] = V1[0]-A_diagonal[0]*np.median(self.data[first_star,self.dictionary['mag']].astype(float))
+		V2 = v2 - np.dot(C[:,0],np.median(self.data[first_star,self.dictionary['mag']].astype(float)))
+		A_Diagonal = A_diagonal[1:]
+		BB = B[1:,:]
+		CC = C[:,1:]
+		
+		### 
+		import pdb; pdb.set_trace()
+
+		Invert_A_Diagonal=1/A_Diagonal	
+		
+		
+		term1=Invert_A_Diagonal[:,None]*BB	
+		term2=np.dot(CC,term1)
 		term3=D-term2
-		term4=Invert_A_diagonal*v1
-		term5=np.dot(C,term4)
-		term6 = v2-term5
+		term4=Invert_A_Diagonal*V1
+		term5=np.dot(CC,term4)
+		term6 = V2-term5
 			
 		# inverting matrix, not really efficient 
 		#Invert = np.linalg.inv(term3)
@@ -375,10 +394,10 @@ class RedNoiseSolver(object):
 		x2=np.linalg.lstsq(term3,term6)[0]
 
 
-		
-		self.x2 = x2
-		self.x1=term4-Invert_A_diagonal*np.dot(B,x2)
 
+		self.x2 = x2
+		self.x1=1/A_diagonal*v1-1/A_diagonal*np.dot(B,x2)
+		
 ###########################################################################################################################################################################
 ### ALL THE FOLLOWING CAN, AND SHOULD, BE IGNORED. THIS COMES FROM ORIGINAL BRAMICH AND FREUDLING 2012 IMPLEMENTATION. WE KEEP IT FOR HISTORIC AND DEVELOPMENT PURPOSE ####
 ###########################################################################################################################################################################

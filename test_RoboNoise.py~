@@ -40,15 +40,16 @@ Solver.clean_bad_stars(['lc_00325.189_00321.049_t'])
 Solver.clean_magnitude_data(22)
 
 # Choose the quantity you can define regarding what you have in the dataset. For example, if you just have airmass, just put ['airmass']. Same order as previously
-choice=['airmass','exposure','seeing','background','CCD_X','CCD_Y','phot_scale_factor','frames']
-#choice=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor','frames']
+#choice=['airmass','exposure','seeing','background','CCD_X','CCD_Y','phot_scale_factor','frames']
+choice=['airmass','CCD_X','CCD_Y','exposure','background','seeing','time','phot_scale_factor','frames']
 
 # Define the quantities
 Solver.define_continuous_quantities(choice)
 
 Solver.CCD_fit_degree=3
+
 # What do you want to fit. For example, if you want 'airmass' and 'seeing', just put ['airmass','seeing']. Here we want to fit the airmass :
-choice=['frames']
+choice=['airmass','CCD','seeing']
 
 ############LEAVE THIS BIT IN FOR DAN TO WRITE OUT THE CLEANED DATA THAT ARE BEING USED FOR TESTING PURPOSES##############
 #with open('Dan.Data.OB141185.txt', mode='w') as rfile:
