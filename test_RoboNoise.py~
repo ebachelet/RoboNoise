@@ -49,7 +49,7 @@ Solver.define_continuous_quantities(choice)
 Solver.CCD_fit_degree=3
 
 # What do you want to fit. For example, if you want 'airmass' and 'seeing', just put ['airmass','seeing']. Here we want to fit the airmass :
-choice=['airmass','CCD','seeing']
+choice=['offset']
 
 ############LEAVE THIS BIT IN FOR DAN TO WRITE OUT THE CLEANED DATA THAT ARE BEING USED FOR TESTING PURPOSES##############
 #with open('Dan.Data.OB141185.txt', mode='w') as rfile:
@@ -81,7 +81,7 @@ Solver.solve()
 
 # Plot the star 0 measurements.
 index=np.where(Solver.data[:,dico['stars']]==Solver.data[0,dico['stars']])[0]
-plt.errorbar(Solver.data[index,dico['time']].astype(float)-2450000.0,Solver.data[index,dico['mag']].astype(float),yerr=Solver.data[index,dico['err_mag']].astype(float),fmt='.k')
+#plt.errorbar(Solver.data[index,dico['time']].astype(float)-2450000.0,Solver.data[index,dico['mag']].astype(float),yerr=Solver.data[index,dico['err_mag']].astype(float),fmt='.k')
 
 # Construc the model
 

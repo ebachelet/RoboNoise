@@ -65,7 +65,7 @@ class RedNoiseSolver(object):
 		"""
 
                 # Determine the star list in the dataset
-		stars = np.unique(self.data[:,self.dictionary['stars']])
+		stars, indexes_stars, count_stars = np.unique(self.data[:,self.dictionary['stars']], return_index=True, return_counts=True)
 		number_of_stars = len(stars)
 
 		# Determine the frame list in the dataset
@@ -75,12 +75,20 @@ class RedNoiseSolver(object):
 		# create quantity to fit as selected in choice. If you choose 'airmass' and 'seeing', then quantities will be quantities = [Q_'airmass',Q_'seeing']. See documentation of the function for details on quantities.
 
 		quantities = self.find_model_quantities(choices[0])
-
+				
 		# stack the quantities column by columne : quantities =[Q1,Q2,Q3....Qn]
 
 		for i in choices[1:] :
 			quantities = np.c_[quantities,self.find_model_quantities(i)]
-			
+		
+		# normalise quantities with errorbar
+		if quantities.ndim == 1:
+
+			quantities = quantities/self.data[:,self.dictionary['err_mag']].astype(float)
+		else:
+
+			quantities = quantities/self.data[:,self.dictionary['err_mag']].astype(float)[:,None]	
+
                 # MAKE CHECK HERE THAT THERE ARE AT LEAST TWO STARS - MORE ROBUST CODE - AND REPORT AN ERROR MESSAGE IF NOT. TODO!
 
 		# Construct the A, B sub matrices, see Bramich and Freudling 2012, and the v1 vector.
@@ -89,28 +97,50 @@ class RedNoiseSolver(object):
 		A_diagonal = []
 		v1 = []
 		B=[]
-		count = 0
+		
 
+		for i in xrange(len(stars)) :
 			
-		for i in stars :
 
-			index = np.where(self.data[:,self.dictionary['stars']]==i)[0]
+			index = np.arange(indexes_stars[i],indexes_stars[i]+count_stars[i]).tolist()			
+
 			A_diagonal.append(sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2))
 			v1.append(sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2))
 			line=[]
 			if quantities.ndim==1:
 					
-				line+=[np.sum(quantities[index]*1/self.data[index,self.dictionary['err_mag']].astype(float)**2)]					
+				line+=[np.sum(quantities[index]*1/self.data[index,self.dictionary['err_mag']].astype(float))]					
 			
 			else:
 
-				line+=np.sum(quantities[index].T*1/self.data[index,self.dictionary['err_mag']].astype(float)**2,axis=1).tolist()
+				line+=np.sum(quantities[index].T*1/self.data[index,self.dictionary['err_mag']].astype(float),axis=1).tolist()
 
 				
 			B.append(line)
+
+		
+		## Old way		
+
+		#for i in stars :
+			
+		#	index = np.where(self.data[:,self.dictionary['stars']]==i)[0]
+		#	A_diagonal.append(sum(1/self.data[index,self.dictionary['err_mag']].astype(float)**2))
+		#	v1.append(sum(self.data[index,self.dictionary['mag']].astype(float)/self.data[index,self.dictionary['err_mag']].astype(float)**2))
+		#	line=[]
+		#	if quantities.ndim==1:
+					
+		#		line+=[np.sum(quantities[index]*1/self.data[index,self.dictionary['err_mag']].astype(float)**2)]					
+			
+		#	else:
+
+		#		line+=np.sum(quantities[index].T*1/self.data[index,self.dictionary['err_mag']].astype(float)**2,axis=1).tolist()
+
 				
+		#	B.append(line)
+
+		
 		B=np.array(B)
-				
+		#import pdb; pdb.set_trace()	
 		print 'Matrices A,B and v1 construct in',time.time()-start,'s'
 		
 		
@@ -118,44 +148,45 @@ class RedNoiseSolver(object):
 		
 		
 		start = time.time()
+
+
 		v2=[]
 		if quantities.ndim==1:
 			n_dim = 1
 			D = np.zeros((1,1))
 			quantities_i=quantities
 			quantities_j=quantities
-			D[0,0] = np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
-			v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2))
+			D[0,0] = np.sum(quantities_i*quantities_j)
+			v2.append(np.sum(quantities_i*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)))
 			v2=np.array(v2)
 		else:
 			n_dim =quantities.shape[1]
 			D = np.zeros((n_dim,n_dim))
 
 			for i in xrange(n_dim)  :
-	
+				
 				quantities_i=quantities[:,i]
-				line=[]	
-				print i
+				
 				for j in np.arange(i,n_dim) :
 			
 					quantities_j=quantities[:,j]
-					
+				
 					
 					if choices[0]=='frames' :
-						
+						#import pdb; pdb.set_trace()
 						if i==j :
 
-							somme =  np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
+							somme =  np.sum(quantities_i*quantities_j)
 						else :
 					
 							somme  = 0.0
 					else :
-						somme =  np.sum(quantities_i[:]*quantities_j[:]/self.data[:,self.dictionary['err_mag']].astype(float)**2)
+						somme =  np.sum(quantities_i*quantities_j)
 					D[i,j] = somme
 					D[j,i] = somme
 					
 			
-				v2.append(np.sum(quantities_i[:]*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float)**2)) 
+				v2.append(np.sum(quantities_i*self.data[:,self.dictionary['mag']].astype(float)/self.data[:,self.dictionary['err_mag']].astype(float))) 
 		
 		
 			v2=np.array(v2)
@@ -257,28 +288,47 @@ class RedNoiseSolver(object):
 		return offset_phot_scale_factor
 	 
 	def clean_bad_data(self) :
+		
 
 		# Delete all the measurement for the star j if  : error_mag is -1.0 or >10; or if the variation of the star is to big (i.e std(mag)>1)
-		
-		stars = np.unique(self.data[:,self.dictionary['stars']])
-		index = []
-		
-                mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
-		
-		count = 0		
-		for i in stars :
-			
-			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]
-			
-			if (True in mask[index2]):
-				pass
-			else :
+		 
 
-				if np.std(self.data[index2,self.dictionary['mag']].astype(float))<1.0 :
-					index += index2.tolist() 
-			count += 1	
+		#self.data = self.data[self.data[:,self.dictionary['stars']].argsort(),]
+
+                mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
+		good_measurements = np.where(mask==False)[0]
 		
-		self.data = self.data[index]
+		good_data = self.data[good_measurements]
+		
+		stars, indexes, count =  np.unique(good_data[:,self.dictionary['stars']], return_index=True, return_counts = True)
+		index = []
+		max_number_of_measurements = max(count)
+		for i in xrange(len(count)) :
+			
+			if count[i] == max_number_of_measurements :
+				index_star = np.arange(indexes[i],indexes[i]+count[i]).tolist()
+				if np.std(good_data[index_star,self.dictionary['mag']].astype(float))<1.0:
+					
+					index += index_star
+		
+		## Old way to do it, much much more slower
+	
+		#stars = np.unique(self.data[:,self.dictionary['stars']])
+		#mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
+		#bad_measurements = np.where(mask==True)[0]
+		#bad_stars = np.unique(self.data[bad_measurements,self.dictionary['stars']])	
+		#good_stars = np.setdiff1d(stars,bad_stars)
+		#index3 = []
+		#for i in good_stars :
+		#	start = time.time()
+		#	index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]
+			
+		#	print time.time()-start
+		#	if np.std(self.data[index2,self.dictionary['mag']].astype(float))<1.0 :
+		#		index3 += index2.tolist() 
+			
+		#imporpdb; pdb.set_trace()	
+		self.data = good_data[index]
 		print 'Bad data clean : OK'
 
 	def clean_bad_stars(self,choices) :
@@ -300,24 +350,49 @@ class RedNoiseSolver(object):
 		print 'Bad stars clean : OK '
 			
 	def clean_magnitude_data(self,threshold) :
-
+		
 		#Clean stars fainter than the threshold. 
 
-		stars = np.unique(self.data[:,self.dictionary['stars']])
-		index = np.arange(0,len(self.data)+1)
-		index3 = []
-		
-		
-		for i in stars :
 
-			index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
-			if max(self.data[index2,self.dictionary['mag']].astype(float))>threshold :
-				pass
-			else :
+
+
 		
-				index3 = index3+index2.tolist()
+		
+                mask =(self.data[:,self.dictionary['mag']].astype(float)<22)
+		
+		
+		good_data = self.data[mask]
+		
+		stars, indexes, count =  np.unique(good_data[:,self.dictionary['stars']], return_index=True, return_counts = True)
+		index = []
+		max_number_of_measurements = max(count)
+		for i in xrange(len(count)) :
+			
+			if count[i] == max_number_of_measurements :
+				index_star = np.arange(indexes[i],indexes[i]+count[i]).tolist()					
+				index += index_star
+		
+		self.data = good_data[index]
+		## Old way to do it, much much more slower
+
+
+		#stars = np.unique(self.data[:,self.dictionary['stars']])
+		#index = np.arange(0,len(self.data)+1)
+		#index3 = []
+		
+		
+		#for i in stars :
+
+			#index2 = np.where(self.data[:,self.dictionary['stars']]==i)[0]			
+			#if max(self.data[index2,self.dictionary['mag']].astype(float))>threshold :
+			#	pass
+			#else :
+		
+			#	index3 = index3+index2.tolist()
 	
-		self.data = self.data[index3]			
+
+
+		#self.data = self.data[index]			
 		print 'Stars magnitude clean : OK'
 
 
@@ -363,14 +438,18 @@ class RedNoiseSolver(object):
 		first_star = np.where(self.data[:,self.dictionary['stars']] == first)[0]
 		
 		V1 = v1[1:]
-		#V1[0] = V1[0]-A_diagonal[0]*np.median(self.data[first_star,self.dictionary['mag']].astype(float))
 		V2 = v2 - np.dot(C[:,0],np.median(self.data[first_star,self.dictionary['mag']].astype(float)))
 		A_Diagonal = A_diagonal[1:]
 		BB = B[1:,:]
 		CC = C[:,1:]
+
+		## Uncomment this if you dont want to scale the pb (probably a bad idea)
+		#A_Diagonal = A_diagonal
+		#BB = B
+		#CC = C
+		#V1 = v1
+		#V2 = v2
 		
-		### 
-		import pdb; pdb.set_trace()
 
 		Invert_A_Diagonal=1/A_Diagonal	
 		

@@ -81,7 +81,7 @@ Solver.solve()
 
 # Plot the star 0 measurements.
 index=np.where(Solver.data[:,dico['stars']]==Solver.data[0,dico['stars']])[0]
-plt.errorbar(Solver.data[index,dico['time']].astype(float)-2450000.0,Solver.data[index,dico['mag']].astype(float),yerr=Solver.data[index,dico['err_mag']].astype(float),fmt='.k')
+#plt.errorbar(Solver.data[index,dico['time']].astype(float)-2450000.0,Solver.data[index,dico['mag']].astype(float),yerr=Solver.data[index,dico['err_mag']].astype(float),fmt='.k')
 
 # Construc the model
 
