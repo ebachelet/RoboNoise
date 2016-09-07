@@ -254,7 +254,7 @@ class RedNoiseSolver(object):
 		#f(x) = a_i*x**i*y**j  --> Q_'CCD' =[CCD_Y^1,CCD_Y^2,....CCD_Y^j*CCD_X^i,....,CCD_X^i] 
 		
 		degree = self.CCD_fit_degree
-		offset_CCD = self.quantities.CCD_X
+		offset_CCD = np.array(len(self.quantities.CCD_X)*[1.0])
 		for i in range(degree+1) :
 			for j in range(degree+1) :
 			
@@ -264,7 +264,7 @@ class RedNoiseSolver(object):
 
 					offset_CCD = np.c_[offset_CCD, ((self.quantities.CCD_X))**(i)*((self.quantities.CCD_Y))**(j)]
 
-		return offset_CCD[:,1:]
+		return offset_CCD[:,0:]
 		
 	
 	def model_exposure_time(self) :
@@ -297,10 +297,11 @@ class RedNoiseSolver(object):
 
                 mask = ((self.data[:,self.dictionary['err_mag']].astype(float)==-1.0) | (self.data[:,self.dictionary['err_mag']].astype(float)>10))
 		good_measurements = np.where(mask==False)[0]
-		
+
 		good_data = self.data[good_measurements]
 		
 		stars, indexes, count =  np.unique(good_data[:,self.dictionary['stars']], return_index=True, return_counts = True)
+		#stars, indexes, count =  np.unique(self.data[good_measurements], return_index=True, return_counts = True)
 		index = []
 		max_number_of_measurements = max(count)
 		for i in xrange(len(count)) :
@@ -308,7 +309,7 @@ class RedNoiseSolver(object):
 			if count[i] == max_number_of_measurements :
 				index_star = np.arange(indexes[i],indexes[i]+count[i]).tolist()
 				if np.std(good_data[index_star,self.dictionary['mag']].astype(float))<1.0:
-					
+				#if np.std(self.data[good_measurements[index_star],self.dictionary['mag']].astype(float))<1.0:	
 					index += index_star
 		
 		## Old way to do it, much much more slower
@@ -329,6 +330,7 @@ class RedNoiseSolver(object):
 			
 		#imporpdb; pdb.set_trace()	
 		self.data = good_data[index]
+		#self.data = self.data[good_measurements[index]]			
 		print 'Bad data clean : OK'
 
 	def clean_bad_stars(self,choices) :

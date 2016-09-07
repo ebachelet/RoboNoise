@@ -10,18 +10,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import collections
-
+import pandas as pd
+start = time.time() 
 # Load RoboNoise
 import RoboNoise
 
 
-start = time.time()
+
 
 # Choose the dataset you want to study. Uncomment it.
-data=np.loadtxt('OB141185_lightcurves_coja.txt',dtype='string')
+data = pd.read_csv('../../K2C9/lc_all_K2C9_1.txt',sep = ' ',header=None)
+data = np.array(data)
+#data=np.loadtxt('../../K2C9/lc_all_K2C9_16.txt',dtype='string',usecols = dico.values())
+#data=np.loadtxt('OB141185_lightcurves_coja.txt',dtype='string')
 #data=np.loadtxt('Auckland_parameters.txt',dtype='string')
 print "Data success load in",time.time()-start,'s'
-
+import pdb; pdb.set_trace()
 # Choose the according dictionary you have to pass to the solver. Same order as previously. Dico is the french abbreviation of dictionnary for people interested.
 dico = {'stars' : 0, 'frames':1, 'time' : 2 , 'mag' : 14, 'err_mag' : 15,'exposure' : 16,'airmass' : -1,'seeing':18,'background':17,'CCD_X':21,'CCD_Y':22,'phot_scale_factor' :19 }
 #dico = {'stars' : 0, 'time' : 2 , 'mag' : 3, 'err_mag' : 4, 'exposure' : 5 , 'airmass' :6,'background' :7, 'seeing' :8,'phot_scale_factor' :9,'CCD_X' :10,'CCD_Y' :11,'frames':12}
@@ -33,8 +37,8 @@ Solver = RoboNoise.RedNoiseSolver(data,dico)
 Solver.clean_bad_data()
 
 # Clean the stars you don't want. Same order as preivously.
-Solver.clean_bad_stars(['lc_00325.189_00321.049_t'])
-#Solver.clean_bad_stars(['lc_00201.135_00199.462_t'])
+#Solver.clean_bad_stars(['lc_00325.189_00321.049_t'])
+Solver.clean_bad_stars(['lc_00201.135_00199.462_t'])
 
 # Clean faint star in your dataset. Here we set the faintest to 22 mag.
 Solver.clean_magnitude_data(22)
@@ -49,7 +53,7 @@ Solver.define_continuous_quantities(choice)
 Solver.CCD_fit_degree=3
 
 # What do you want to fit. For example, if you want 'airmass' and 'seeing', just put ['airmass','seeing']. Here we want to fit the airmass :
-choice=['airmass']
+choice=['CCD']
 
 ############LEAVE THIS BIT IN FOR DAN TO WRITE OUT THE CLEANED DATA THAT ARE BEING USED FOR TESTING PURPOSES##############
 #with open('Dan.Data.OB141185.txt', mode='w') as rfile:
