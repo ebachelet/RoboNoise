@@ -9,7 +9,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import collections
 import pandas as pd
 start = time.time() 
 # Load RoboNoise
